@@ -138,3 +138,11 @@ Use a current version of Chrome, Edge, Firefox, or Safari. Custom time zones dep
 ## License
 
 See the `LICENSE` file included with the project.
+
+## Staff table display options
+
+- The Schedule storage panel starts collapsed when the page loads. Expand it to load from or save to the shared JSON file.
+- The Staff table rows control provides two views:
+  - Show all entries displays all 30 available staff rows.
+  - Hide empty entries displays only rows containing schedule information.
+- Hiding empty entries does not delete data or reduce the number of available rows. The selected view is saved in the browser.

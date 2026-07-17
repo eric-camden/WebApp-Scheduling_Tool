@@ -550,6 +550,26 @@ function attachRowListeners(row) {
 }
 
 // Render the input table based on staffData
+function getStaffRowFilter() {
+  return localStorage.getItem('staffRowFilter') || 'show-all';
+}
+
+function rowIsEmpty(row) {
+  const inputs = row.querySelectorAll('input');
+  if (!inputs.length) return true;
+  const hasText = [0, 1, 2].some(index => String(inputs[index]?.value || '').trim() !== '');
+  const hasLunch = Boolean(inputs[3]?.checked);
+  const hasSelectedDay = Array.from(inputs).slice(5).some(input => input.checked);
+  return !hasText && !hasLunch && !hasSelectedDay;
+}
+
+function applyStaffRowFilter() {
+  const hideEmpty = getStaffRowFilter() === 'hide-empty';
+  document.querySelectorAll('#staff-input-table tbody tr').forEach(row => {
+    row.hidden = hideEmpty && rowIsEmpty(row);
+  });
+}
+
 function renderStaffTable() {
   const tbody = document.querySelector('#staff-input-table tbody');
   tbody.innerHTML = '';
@@ -730,6 +750,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     renderStaffTable();
   });
 
+  // Staff table row visibility filter
+  const savedRowFilter = getStaffRowFilter();
+  document.querySelectorAll('input[name="staff-row-filter"]').forEach(radio => {
+    radio.checked = radio.value === savedRowFilter;
+    radio.addEventListener('change', event => {
+      if (!event.target.checked) return;
+      localStorage.setItem('staffRowFilter', event.target.value);
+      applyStaffRowFilter();
+    });
+  });
+
   // 4) Clear staff data
   document.getElementById('clear-staff').addEventListener('click', () => {
     localStorage.removeItem('staffData');
@@ -806,6 +837,7 @@ Peter von Nostrand,10:30,10,Yes,21:30,Yes,Yes,Yes,No,No,No,Yes`;
     // 4) re-draw everything
     generateHeatmap();
     generateDailyGrids();
+    applyStaffRowFilter();
 
     //alert('Schedule updated.');
   });

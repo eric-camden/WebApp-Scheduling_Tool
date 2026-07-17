@@ -103,17 +103,25 @@
     <select id="staff-entry-timezone"></select>
     <span>Entries are always saved and exported in US Eastern Time.</span>
   </div>
-  <section id="storage-controls" class="glass-panel storage-controls" aria-labelledby="storage-title">
-    <div>
+  <details id="storage-controls" class="glass-panel storage-controls">
+    <summary>
       <strong id="storage-title">Schedule storage</strong>
       <span id="storage-status" class="storage-status">Checking shared storage...</span>
+    </summary>
+    <div class="storage-panel-content">
+      <div class="storage-actions">
+        <button type="button" id="load-shared-storage">Load shared file</button>
+        <button type="button" id="save-shared-storage">Save shared file</button>
+      </div>
+      <small>Uses <code>staff-data.json</code> in the same directory when the web server permits access. If it is missing or read-only, the scheduler automatically uses this browser's local cache.</small>
     </div>
-    <div class="storage-actions">
-      <button type="button" id="load-shared-storage">Load shared file</button>
-      <button type="button" id="save-shared-storage">Save shared file</button>
-    </div>
-    <small>Uses <code>staff-data.json</code> in the same directory when the web server permits access. If it is missing or read-only, the scheduler automatically uses this browser's local cache.</small>
-  </section>
+  </details>
+
+  <div class="staff-row-filter glass-panel" role="radiogroup" aria-labelledby="staff-row-filter-title">
+    <strong id="staff-row-filter-title">Staff table rows:</strong>
+    <label><input type="radio" name="staff-row-filter" value="show-all" checked> Show all entries</label>
+    <label><input type="radio" name="staff-row-filter" value="hide-empty"> Hide empty entries</label>
+  </div>
 
   <div id="button-bar">
     <div class="left-buttons">

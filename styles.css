@@ -535,3 +535,39 @@ body.dark-mode #staff-input-table {
 .storage-status.local { color:#a85d00; }
 .storage-status.error { color:#a12622; }
 .storage-controls small { flex-basis:100%; }
+
+/* Collapsed shared-storage panel and staff-row filter */
+.storage-controls {
+  display: block;
+}
+.storage-controls > summary {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  list-style-position: inside;
+}
+.storage-panel-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+.storage-panel-content small {
+  flex-basis: 100%;
+}
+.staff-row-filter {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin: 10px 0;
+  padding: 10px 12px;
+}
+.staff-row-filter label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+}
