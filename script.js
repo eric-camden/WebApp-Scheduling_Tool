@@ -21,86 +21,190 @@ function getTimeSlots() {
 
 
 
-// Generate the heatmap table
-function generateHeatmap() {
-  const gridBody = document.getElementById('grid-body');
-  gridBody.innerHTML = ''; // Clear previous heatmap
+// Time-zone configuration. Eastern is always the primary row.
+let timeZones = [
+  { id: 'eastern', label: 'Primary — US Eastern', zone: 'America/New_York', primary: true },
+  { id: 'central', label: 'US Central', zone: 'America/Chicago' },
+  { id: 'phoenix', label: 'Phoenix, AZ', zone: 'America/Phoenix' },
+  { id: 'uk', label: 'United Kingdom', zone: 'Europe/London' },
+  { id: 'brisbane', label: 'Brisbane, QLD', zone: 'Australia/Brisbane' }
+];
 
-  const gridHeader = document.querySelector('#staffing-grid thead tr');
-  gridHeader.innerHTML = ''; // Clear headers
+const EASTERN_ZONE = 'America/New_York';
+const savedCustomTimeZones = JSON.parse(localStorage.getItem('customTimeZones') || '[]');
+savedCustomTimeZones.forEach(item => {
+  if (item?.zone && !timeZones.some(zone => zone.zone === item.zone)) {
+    timeZones.push({ id: item.id || `custom-${item.zone.replace(/[^a-z0-9]/gi, '-').toLowerCase()}`, label: item.label || item.zone, zone: item.zone, custom: true });
+  }
+});
 
-  const hours = getTimeSlots();
+function getEnabledTimeZones() {
+  const enabled = new Set(
+    Array.from(document.querySelectorAll('.timezone-toggle:checked')).map(input => input.value)
+  );
+  return timeZones.filter(zone => zone.primary || enabled.has(zone.id));
+}
 
-  // Add "Day" header
-  const dayHeader = document.createElement('th');
-  dayHeader.textContent = 'Day';
-  gridHeader.appendChild(dayHeader);
+function getTimeZoneName(zone, date) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: zone,
+    timeZoneName: 'short'
+  }).formatToParts(date);
+  return parts.find(part => part.type === 'timeZoneName')?.value || '';
+}
 
-  // Add headers for time intervals
-  hours.forEach(hour => {
-    const timeHeader = document.createElement('th');
-    timeHeader.textContent = hour;
-    gridHeader.appendChild(timeHeader);
+// Convert a wall-clock time in a named zone into a UTC instant.
+function zonedWallTimeToDate(year, month, day, hour, minute, timeZone) {
+  const desiredUtc = Date.UTC(year, month - 1, day, hour, minute);
+  let guess = desiredUtc;
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', hourCycle: 'h23'
   });
 
-  // Generate rows for each day
+  for (let i = 0; i < 3; i++) {
+    const parts = Object.fromEntries(
+      formatter.formatToParts(new Date(guess))
+        .filter(part => part.type !== 'literal')
+        .map(part => [part.type, Number(part.value)])
+    );
+    const representedUtc = Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute);
+    guess += desiredUtc - representedUtc;
+  }
+  return new Date(guess);
+}
+
+function getZonedDateParts(date, timeZone) {
+  const values = Object.fromEntries(new Intl.DateTimeFormat('en-US', {
+    timeZone, year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', hourCycle: 'h23', weekday: 'long'
+  }).formatToParts(date).filter(part => part.type !== 'literal').map(part => [part.type, part.value]));
+  return values;
+}
+
+function formatTimeForZone(primaryTime, targetZone, referenceDate = new Date()) {
+  const [hour, minute] = primaryTime.split(':').map(Number);
+  const easternInstant = zonedWallTimeToDate(
+    referenceDate.getFullYear(), referenceDate.getMonth() + 1, referenceDate.getDate(),
+    hour, minute, EASTERN_ZONE
+  );
+  const easternParts = getZonedDateParts(easternInstant, EASTERN_ZONE);
+  const targetParts = getZonedDateParts(easternInstant, targetZone);
+  const easternDate = Date.UTC(Number(easternParts.year), Number(easternParts.month)-1, Number(easternParts.day));
+  const targetDate = Date.UTC(Number(targetParts.year), Number(targetParts.month)-1, Number(targetParts.day));
+  const dayOffset = Math.round((targetDate - easternDate) / 86400000);
+  const text = new Intl.DateTimeFormat('en-US', {
+    timeZone: targetZone, hour: 'numeric', minute: '2-digit', hour12: true
+  }).format(easternInstant).replace(' ', '\u00a0');
+  return { text, dayOffset };
+}
+
+function getReferenceMonday() {
+  const now = new Date();
+  const day = now.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate() + diff, 12, 0, 0);
+}
+
+function convertScheduleDaysAndTime(startTime, days, fromZone, toZone) {
+  if (!startTime || !days?.length || fromZone === toZone) return { startTime, days: [...(days || [])] };
+  const monday = getReferenceMonday();
+  const converted = days.map(dayName => {
+    const dayIndex = daysOfWeek.indexOf(dayName);
+    const sourceDate = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + dayIndex);
+    const [hour, minute] = startTime.split(':').map(Number);
+    const instant = zonedWallTimeToDate(sourceDate.getFullYear(), sourceDate.getMonth()+1, sourceDate.getDate(), hour, minute, fromZone);
+    const parts = getZonedDateParts(instant, toZone);
+    return { day: parts.weekday, time: `${parts.hour.padStart(2,'0')}:${parts.minute.padStart(2,'0')}` };
+  });
+  return { startTime: converted[0]?.time || startTime, days: [...new Set(converted.map(item => item.day))] };
+}
+
+function getStaffEntryZone() {
+  return document.getElementById('staff-entry-timezone')?.value || EASTERN_ZONE;
+}
+
+function getHeatmapColor(count, maxCount) {
+  if (maxCount <= 0 || count <= 0) return 'hsl(0 82% 52% / 0.78)';
+  const ratio = Math.min(count / maxCount, 1);
+  const hue = Math.round(120 * ratio); // 0 = red, 120 = green
+  return `hsl(${hue} 82% 43% / 0.78)`;
+}
+
+function getHeatmapTextColor(count, maxCount) {
+  if (maxCount <= 0) return '#fff';
+  const ratio = count / maxCount;
+  return ratio > 0.38 && ratio < 0.78 ? '#111' : '#fff';
+}
+
+function updateHeatmapLegend(maxCount) {
+  const legend = document.getElementById('heatmap-legend');
+  if (!legend) return;
+  legend.innerHTML = `
+    <span>0</span>
+    <span class="heatmap-gradient" aria-hidden="true"></span>
+    <span>Max: ${maxCount}</span>
+  `;
+}
+
+// Generate the heatmap table with aligned World Time Buddy-style time-zone rows.
+function generateHeatmap() {
+  const gridBody = document.getElementById('grid-body');
+  const gridHeader = document.querySelector('#staffing-grid thead');
+  gridBody.innerHTML = '';
+  gridHeader.innerHTML = '';
+
+  const hours = getTimeSlots();
+  const enabledZones = getEnabledTimeZones();
+  const referenceDate = new Date();
+
+  enabledZones.forEach(zone => {
+    const row = document.createElement('tr');
+    row.className = `timezone-row${zone.primary ? ' primary-timezone-row' : ''}`;
+
+    const labelHeader = document.createElement('th');
+    const abbreviation = getTimeZoneName(zone.zone, referenceDate);
+    labelHeader.innerHTML = `<span>${zone.label}</span><small>${abbreviation}</small>`;
+    row.appendChild(labelHeader);
+
+    hours.forEach(hour => {
+      const timeHeader = document.createElement('th');
+      const converted = formatTimeForZone(hour, zone.zone, referenceDate);
+      timeHeader.innerHTML = `<span class="zone-time">${converted.text}</span>${converted.dayOffset ? `<small class="day-offset">${converted.dayOffset > 0 ? '+' : ''}${converted.dayOffset}</small>` : '<small class="day-offset current-day"></small>'}`
+      row.appendChild(timeHeader);
+    });
+    gridHeader.appendChild(row);
+  });
+
+  const countsByDay = daysOfWeek.map((day, dayIndex) => {
+    return hours.map(hour => {
+      const previousDayIndex = (dayIndex - 1 + 7) % 7;
+      const previousDay = daysOfWeek[previousDayIndex];
+      return staffData.filter(staff => (
+        (staff.days.includes(day) && isTimeWithinShift(staff.startTime, staff.hoursWorked, staff.hasLunch, hour, dayIndex)) ||
+        (staff.days.includes(previousDay) && isCarryoverShift(staff.startTime, staff.hoursWorked, staff.hasLunch, hour, previousDayIndex))
+      )).length;
+    });
+  });
+
+  const maxCount = Math.max(0, ...countsByDay.flat());
+  updateHeatmapLegend(maxCount);
+
   daysOfWeek.forEach((day, dayIndex) => {
     const row = document.createElement('tr');
     const dayCell = document.createElement('td');
     dayCell.textContent = day;
+    dayCell.className = 'day-label';
     row.appendChild(dayCell);
 
-    hours.forEach(hour => {
+    hours.forEach((hour, hourIndex) => {
+      const count = countsByDay[dayIndex][hourIndex];
       const cell = document.createElement('td');
-
-      // Count staff working during the hour on this day
-      const count = staffData.filter(staff => {
-        const isWorkingOnDay = staff.days.includes(day);
-        const previousDayIndex = (dayIndex - 1 + 7) % 7; // Wrap around for previous day
-        const previousDay = daysOfWeek[previousDayIndex];
-
-        // Check if staff is working on the given day or the next day due to a carryover
-        return (
-          (isWorkingOnDay && isTimeWithinShift(staff.startTime, staff.hoursWorked, staff.hasLunch, hour, dayIndex)) ||
-          (staff.days.includes(previousDay) && isCarryoverShift(staff.startTime, staff.hoursWorked, staff.hasLunch, hour, previousDayIndex))
-        );
-      }).length;
-
-
-// Apply color scale based on count
-let color;
-let fontColor = 'black'; // Default font color
-
-if (count === 0) {
-  color = `rgba(255, 0, 0, 0.6)`; // Red for 0
-} else if (count === 1) {
-  color = `rgba(255, 69, 0, 0.6)`; // Orange-Red
-} else if (count === 2) {
-  color = `rgba(255, 140, 0, 0.6)`; // Dark Orange
-} else if (count === 3) {
-  color = `rgba(255, 200, 0, 0.6)`; // Yellow-Orange
-} else if (count === 4) {
-  color = `rgba(255, 255, 0, 0.6)`; // Yellow
-} else if (count === 5) {
-  color = `rgba(173, 255, 47, 0.6)`; // Yellow-Green
-} else if (count === 6) {
-  color = `rgba(0, 255, 0, 0.6)`; // Green
-} else if (count === 7) {
-  color = `rgba(0, 200, 150, 0.6)`; // Green-Blue
-} else if (count === 8) {
-  color = `rgba(0, 150, 200, 0.6)`; // Cyan
-} else if (count === 9) {
-  color = `rgba(0, 100, 255, 0.6)`; // Light Blue
-  fontColor = 'darkgrey'; // Change font color for 9+
-} else if (count >= 10) {
-  color = `rgba(0, 0, 255, 0.6)`; // Blue for 10+
-  fontColor = 'darkgrey'; // Change font color for 10+
-}
-
-// Apply styles to the heatmap cell
-cell.style.backgroundColor = color;
-cell.style.color = fontColor; // Updates font color dynamically
-cell.textContent = count;
+      cell.style.backgroundColor = getHeatmapColor(count, maxCount);
+      cell.style.color = getHeatmapTextColor(count, maxCount);
+      cell.textContent = count;
+      cell.title = `${day} ${hour} Eastern: ${count} staff`;
       row.appendChild(cell);
     });
 
@@ -380,7 +484,10 @@ function renderStaffTable() {
   const tbody = document.querySelector('#staff-input-table tbody');
   tbody.innerHTML = '';
   for (let i = 0; i < 30; i++) {
-    const data = staffData[i] || { name:'', startTime:'', hoursWorked:'', hasLunch:false, outTime:'', days:[] };
+    const stored = staffData[i] || { name:'', startTime:'', hoursWorked:'', hasLunch:false, outTime:'', days:[] };
+    const convertedSchedule = stored.startTime ? convertScheduleDaysAndTime(stored.startTime, stored.days, EASTERN_ZONE, getStaffEntryZone()) : { startTime:'', days:[] };
+    const data = { ...stored, startTime: convertedSchedule.startTime, days: convertedSchedule.days };
+    if (data.startTime && data.hoursWorked) data.outTime = calculateEndTime(data.startTime, data.hoursWorked, data.hasLunch).display;
     const row = document.createElement('tr');
     ['text','time','number','checkbox','text'].forEach((type, idx) => {
       const cell = document.createElement('td');
@@ -447,6 +554,43 @@ function exportToCSV() {
 const daysOfWeek = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
 let staffData  = JSON.parse(localStorage.getItem('staffData')) || [];
 
+function persistCustomTimeZones() {
+  localStorage.setItem('customTimeZones', JSON.stringify(timeZones.filter(zone => zone.custom).map(({id,label,zone}) => ({id,label,zone}))));
+}
+
+function isValidTimeZone(zone) {
+  try { new Intl.DateTimeFormat('en-US', { timeZone: zone }).format(); return true; } catch { return false; }
+}
+
+function renderTimeZoneControls() {
+  const list = document.getElementById('custom-timezone-list');
+  if (!list) return;
+  list.innerHTML = '';
+  timeZones.filter(zone => zone.custom).forEach(zone => {
+    const label = document.createElement('label');
+    label.className = 'timezone-option custom-zone-option';
+    label.innerHTML = `<input type="checkbox" class="timezone-toggle" value="${zone.id}" checked> ${zone.label} <button type="button" class="remove-timezone" data-zone-id="${zone.id}" title="Remove time zone">×</button>`;
+    list.appendChild(label);
+  });
+}
+
+function populateStaffEntryTimeZones() {
+  const select = document.getElementById('staff-entry-timezone');
+  if (!select) return;
+  const previous = localStorage.getItem('staffEntryTimeZone') || EASTERN_ZONE;
+  select.innerHTML = timeZones.map(zone => `<option value="${zone.zone}">${zone.primary ? 'US Eastern (saved time)' : zone.label}</option>`).join('');
+  select.value = timeZones.some(zone => zone.zone === previous) ? previous : EASTERN_ZONE;
+}
+
+function bindTimeZoneToggle(toggle) {
+  const saved = localStorage.getItem(`timezone-${toggle.value}`);
+  if (saved !== null) toggle.checked = saved === 'true';
+  toggle.addEventListener('change', () => {
+    localStorage.setItem(`timezone-${toggle.value}`, String(toggle.checked));
+    generateHeatmap();
+  });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   // Create shared fileInput for import & test data
   const fileInput = document.createElement('input');
@@ -480,6 +624,39 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('half-hour-toggle').addEventListener('change', () => {
     generateHeatmap();
     generateDailyGrids();
+  });
+
+  // Optional aligned time-zone rows and user-added zones
+  renderTimeZoneControls();
+  document.querySelectorAll('.timezone-toggle').forEach(bindTimeZoneToggle);
+  populateStaffEntryTimeZones();
+
+  document.getElementById('add-timezone')?.addEventListener('click', () => {
+    const select = document.getElementById('timezone-add-select');
+    const customInput = document.getElementById('custom-timezone-input');
+    const selected = select?.value || '';
+    let [zone, label] = selected.split('|');
+    if (customInput?.value.trim()) { zone = customInput.value.trim(); label = zone.split('/').pop().replace(/_/g, ' '); }
+    if (!zone || !isValidTimeZone(zone)) { alert('Enter or select a valid IANA time zone, such as Europe/Madrid.'); return; }
+    if (timeZones.some(item => item.zone === zone)) { alert('That time zone is already available.'); return; }
+    const item = { id: `custom-${zone.replace(/[^a-z0-9]/gi, '-').toLowerCase()}`, label: label || zone, zone, custom: true };
+    timeZones.push(item); persistCustomTimeZones(); renderTimeZoneControls();
+    const toggle = document.querySelector(`.timezone-toggle[value="${item.id}"]`); bindTimeZoneToggle(toggle);
+    populateStaffEntryTimeZones(); generateHeatmap();
+    if (select) select.value = ''; if (customInput) customInput.value = '';
+  });
+
+  document.getElementById('custom-timezone-list')?.addEventListener('click', event => {
+    const button = event.target.closest('.remove-timezone'); if (!button) return;
+    const id = button.dataset.zoneId; timeZones = timeZones.filter(zone => zone.id !== id);
+    localStorage.removeItem(`timezone-${id}`); persistCustomTimeZones(); renderTimeZoneControls();
+    document.querySelectorAll('#custom-timezone-list .timezone-toggle').forEach(bindTimeZoneToggle);
+    populateStaffEntryTimeZones(); generateHeatmap();
+  });
+
+  document.getElementById('staff-entry-timezone')?.addEventListener('change', event => {
+    localStorage.setItem('staffEntryTimeZone', event.target.value);
+    renderStaffTable();
   });
 
   // 4) Clear staff data
@@ -545,7 +722,9 @@ Peter von Nostrand,10:30,10,Yes,21:30,Yes,Yes,Yes,No,No,No,Yes`;
 
       // only keep fully-filled rows
       if (name && startTime && hoursWorked && outTime) {
-        newData.push({ name, startTime, hoursWorked, hasLunch, outTime, days });
+        const easternSchedule = convertScheduleDaysAndTime(startTime, days, getStaffEntryZone(), EASTERN_ZONE);
+        const easternEnd = calculateEndTime(easternSchedule.startTime, hoursWorked, hasLunch);
+        newData.push({ name, startTime: easternSchedule.startTime, hoursWorked, hasLunch, endTime: easternEnd.raw, outTime: easternEnd.display, days: easternSchedule.days });
       }
     });
 

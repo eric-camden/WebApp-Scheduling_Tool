@@ -319,3 +319,211 @@ body.dark-mode #staff-input-table {
   -webkit-backdrop-filter: blur(3.3px);
   border: 1px solid rgba(255, 255, 255, 0.74);  
 }
+/* Display and time-zone controls */
+#display-controls {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 14px 28px;
+}
+
+#timezone-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+
+.timezone-option {
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.timezone-option input {
+  margin-right: 5px;
+}
+
+.primary-zone {
+  font-weight: 700;
+}
+
+.timezone-note {
+  width: 100%;
+  margin: 0;
+  font-size: 0.82rem;
+  opacity: 0.78;
+}
+
+.table-scroll {
+  width: 100%;
+  overflow-x: auto;
+  padding-bottom: 8px;
+}
+
+#staffing-grid {
+  min-width: 1050px;
+}
+
+#staffing-grid .timezone-row th {
+  background: rgba(242, 242, 242, 0.92);
+  font-weight: 600;
+  white-space: nowrap;
+  height: 34px;
+}
+
+#staffing-grid .primary-timezone-row th {
+  background: rgba(210, 229, 248, 0.96);
+  border-bottom: 2px solid #3977a8;
+}
+
+#staffing-grid .timezone-row th:first-child {
+  text-align: left;
+  padding-left: 8px;
+  font-size: 0.72rem;
+  position: sticky;
+  left: 0;
+  z-index: 3;
+}
+
+#staffing-grid .timezone-row th:first-child span,
+#staffing-grid .timezone-row th:first-child small {
+  display: block;
+}
+
+#staffing-grid .timezone-row th:first-child small {
+  margin-top: 2px;
+  font-size: 0.62rem;
+  opacity: 0.72;
+}
+
+#staffing-grid .day-label {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: rgba(245, 245, 245, 0.96);
+  font-weight: 700;
+}
+
+#heatmap-legend {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 330px;
+  margin: 6px 0 2px;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.heatmap-gradient {
+  display: inline-block;
+  width: 190px;
+  height: 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(0,0,0,.28);
+  background: linear-gradient(90deg, hsl(0 82% 52%), hsl(60 82% 48%), hsl(120 82% 43%));
+}
+
+.dark-mode #staffing-grid .timezone-row th {
+  background: rgba(42, 42, 42, 0.96);
+}
+
+.dark-mode #staffing-grid .primary-timezone-row th {
+  background: rgba(25, 69, 103, 0.96);
+  border-bottom-color: #78b7e5;
+}
+
+.dark-mode #staffing-grid .day-label {
+  background: rgba(35, 35, 35, 0.96);
+}
+
+/* International time-zone enhancements */
+#staffing-grid .timezone-row th:first-child {
+  width: 112px;
+  min-width: 112px;
+  max-width: 112px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.15;
+}
+
+#staffing-grid .timezone-row th:not(:first-child) {
+  min-width: 58px;
+  padding-top: 4px;
+  padding-bottom: 3px;
+}
+
+.zone-time,
+.day-offset {
+  display: block;
+}
+
+.day-offset {
+  min-height: 0.75rem;
+  margin-top: 1px;
+  font-size: 0.58rem;
+  line-height: 0.7rem;
+  font-weight: 800;
+  opacity: 0.8;
+}
+
+.day-offset.current-day {
+  opacity: 0.42;
+}
+
+#custom-timezone-list {
+  display: contents;
+}
+
+.timezone-add-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  margin-top: 4px;
+}
+
+.timezone-add-controls select,
+.timezone-add-controls input,
+.staff-timezone-control select {
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(0,0,0,.3);
+}
+
+#custom-timezone-input {
+  min-width: 245px;
+}
+
+.remove-timezone {
+  margin-left: 3px;
+  padding: 0 5px;
+  min-width: 0;
+  border-radius: 50%;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.staff-timezone-control {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin: 0 0 10px;
+  padding: 10px 12px;
+}
+
+.staff-timezone-control span {
+  font-size: 0.82rem;
+  opacity: 0.78;
+}
+
+.dark-mode .timezone-add-controls select,
+.dark-mode .timezone-add-controls input,
+.dark-mode .staff-timezone-control select {
+  background: #222;
+  color: #fff;
+  border-color: rgba(255,255,255,.35);
+}

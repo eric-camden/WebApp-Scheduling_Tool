@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Staff Scheduler</title>
+  <title>International Staff Scheduler</title>
   <link rel="stylesheet" href="styles.css" />
   <style>
     #button-bar {
@@ -27,10 +27,37 @@
   </style>
 </head>
 <body>
-  <h1>Staff Scheduler</h1>
-<div id="toggle-container" style="margin-top: 10px;">
-  <label for="half-hour-toggle"><strong>Show half-hour data</strong></label>
-  <input type="checkbox" id="half-hour-toggle" />
+  <h1>International Staff Scheduler</h1>
+<div id="display-controls" class="glass-panel">
+  <div id="toggle-container" style="margin-top: 0;">
+    <label for="half-hour-toggle"><strong>Show half-hour data</strong></label>
+    <input type="checkbox" id="half-hour-toggle" />
+  </div>
+
+  <fieldset id="timezone-controls">
+    <legend><strong>Time zones</strong></legend>
+    <label class="timezone-option primary-zone"><input type="checkbox" checked disabled> Primary — US Eastern</label>
+    <label class="timezone-option"><input type="checkbox" class="timezone-toggle" value="central" checked> US Central</label>
+    <label class="timezone-option"><input type="checkbox" class="timezone-toggle" value="phoenix" checked> Phoenix, Arizona</label>
+    <label class="timezone-option"><input type="checkbox" class="timezone-toggle" value="uk" checked> United Kingdom</label>
+    <label class="timezone-option"><input type="checkbox" class="timezone-toggle" value="brisbane" checked> Brisbane, Queensland</label>
+    <div id="custom-timezone-list"></div>
+    <div class="timezone-add-controls">
+      <select id="timezone-add-select" aria-label="Additional time zone">
+        <option value="">Add another time zone…</option>
+        <option value="Europe/Madrid|Madrid, Spain">Madrid, Spain</option>
+        <option value="Europe/Paris|Paris, France">Paris, France</option>
+        <option value="Europe/Berlin|Berlin, Germany">Berlin, Germany</option>
+        <option value="Asia/Kolkata|India">India</option>
+        <option value="Asia/Singapore|Singapore">Singapore</option>
+        <option value="Asia/Tokyo|Tokyo, Japan">Tokyo, Japan</option>
+        <option value="Pacific/Auckland|Auckland, New Zealand">Auckland, New Zealand</option>
+      </select>
+      <button type="button" id="add-timezone">Add</button>
+      <input id="custom-timezone-input" type="text" placeholder="Or enter IANA zone, e.g. Europe/Madrid" aria-label="Custom IANA time zone">
+    </div>
+  </fieldset>
+  <p class="timezone-note">Time-zone offsets, day changes, and abbreviations use the current date, including daylight-saving changes.</p>
 </div>
 
 <p><a href="#daily-schedules">📅 Jump to Daily Schedules</a></p>
@@ -38,8 +65,9 @@
 <details open>
 <summary>📊 Heatmap</summary>
 <h2>Heatmap</h2>
+  <div id="heatmap-legend" aria-live="polite"></div>
 
-
+  <div class="table-scroll">
   <table id="staffing-grid">
     <thead>
       <tr>
@@ -51,13 +79,14 @@
       <!-- Day rows with heatmap data will be generated here -->
     </tbody>
   </table>
+  </div>
 </details>
   <details id="instructions" open style="margin-top: 20px;">
-    <summary><strong>📘 How to Use the Staff Scheduler</strong> <label style="margin-left: 1em; font-weight: normal;"><input type="checkbox" id="show-on-load" checked> Show when page loads</label></summary>
+    <summary><strong>📘 How to Use the International Staff Scheduler</strong> <label style="margin-left: 1em; font-weight: normal;"><input type="checkbox" id="show-on-load" checked> Show when page loads</label></summary>
     <div style="margin-top: 10px;">
       <p><strong>Step 1:</strong> Enter staff names, start time, hours worked, and select the days they work. The end time will be calculated automatically.</p>
-      <p><strong>Step 2:</strong> Click <strong>Update Heatmap</strong> to generate the Heatmap and Daily Schedules.</p>
-      <p><strong>Step 3:</strong> Use the <strong>Show half-hour data</strong> toggle to refine time resolution in the schedule tables.</p>
+      <p><strong>Step 2:</strong> Click <strong>Update & Save</strong> to generate the Heatmap and Daily Schedules.</p>
+      <p><strong>Step 3:</strong> Use the <strong>Show half-hour data</strong> toggle to refine time resolution, and select the optional time zones you want displayed beneath Primary US Eastern time. Small +1 or -1 markers indicate a next-day or previous-day conversion.</p>
       <p><strong>Step 4:</strong> You can <strong>Import</strong> or <strong>Export</strong> data as CSV, <strong>Clear</strong> the staff list, or load <strong>Sample Data</strong> for demo purposes.</p>
       <p>Your entries are saved locally in your browser and will be restored on your next visit.</p>
       <p style="margin-top: 1em; font-style: italic; color: #555;">We've pre-loaded example data on your first visit to help you explore the tool quickly. You can clear or replace it anytime.</p>
@@ -69,6 +98,11 @@
   <details open>
 <summary>👥 Staff Table</summary>
 <h2>Staff Table</h2>
+  <div class="staff-timezone-control glass-panel">
+    <label for="staff-entry-timezone"><strong>View/edit staff entries in:</strong></label>
+    <select id="staff-entry-timezone"></select>
+    <span>Entries are always saved and exported in US Eastern Time.</span>
+  </div>
   <div id="button-bar">
     <div class="left-buttons">
       <button id="save-staff">Update & Save</button>
