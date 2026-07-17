@@ -527,3 +527,11 @@ body.dark-mode #staff-input-table {
   color: #fff;
   border-color: rgba(255,255,255,.35);
 }
+
+.storage-controls { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin:10px 0; padding:12px; }
+.storage-actions { display:flex; gap:8px; flex-wrap:wrap; }
+.storage-status { margin-left:8px; font-weight:600; }
+.storage-status.shared { color:#257a2a; }
+.storage-status.local { color:#a85d00; }
+.storage-status.error { color:#a12622; }
+.storage-controls small { flex-basis:100%; }

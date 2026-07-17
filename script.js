@@ -31,6 +31,76 @@ let timeZones = [
 ];
 
 const EASTERN_ZONE = 'America/New_York';
+
+const SHARED_DATA_URL = './staff-data.json';
+let sharedStorageWritable = false;
+let activeStorageMode = 'local';
+
+function setStorageStatus(message, mode = 'local') {
+  activeStorageMode = mode;
+  const element = document.getElementById('storage-status');
+  if (!element) return;
+  element.textContent = message;
+  element.className = `storage-status ${mode}`;
+}
+
+function saveLocalCache(data = staffData) {
+  localStorage.setItem('staffData', JSON.stringify(data));
+}
+
+function normalizeSharedPayload(payload) {
+  const data = Array.isArray(payload) ? payload : payload?.staffData;
+  if (!Array.isArray(data)) throw new Error('Shared file does not contain a staffData array.');
+  return data;
+}
+
+async function loadSharedData({ quiet = false } = {}) {
+  try {
+    const response = await fetch(`${SHARED_DATA_URL}?t=${Date.now()}`, { cache: 'no-store' });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const remoteData = normalizeSharedPayload(await response.json());
+    staffData = remoteData;
+    saveLocalCache(staffData);
+    setStorageStatus('Shared file loaded; local cache updated.', 'shared');
+    return true;
+  } catch (error) {
+    setStorageStatus('Using local browser cache (shared file unavailable).', 'local');
+    if (!quiet) alert(`Could not load ${SHARED_DATA_URL}. Local browser data remains active.\n\n${error.message}`);
+    return false;
+  }
+}
+
+async function saveSharedData({ quiet = false } = {}) {
+  const payload = JSON.stringify({
+    format: 'International Staff Scheduler',
+    version: 1,
+    savedAt: new Date().toISOString(),
+    canonicalTimeZone: EASTERN_ZONE,
+    staffData
+  }, null, 2);
+  try {
+    const response = await fetch(SHARED_DATA_URL, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: payload
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    sharedStorageWritable = true;
+    setStorageStatus('Saved to shared file and local cache.', 'shared');
+    return true;
+  } catch (error) {
+    sharedStorageWritable = false;
+    saveLocalCache(staffData);
+    setStorageStatus('Shared location is read-only; saved to local browser cache.', 'local');
+    if (!quiet) alert(`The shared location could not be written. Your changes were saved in this browser instead.\n\n${error.message}`);
+    return false;
+  }
+}
+
+async function persistStaffData({ tryShared = true, quiet = true } = {}) {
+  saveLocalCache(staffData);
+  if (tryShared) await saveSharedData({ quiet });
+}
 const savedCustomTimeZones = JSON.parse(localStorage.getItem('customTimeZones') || '[]');
 savedCustomTimeZones.forEach(item => {
   if (item?.zone && !timeZones.some(zone => zone.zone === item.zone)) {
@@ -530,7 +600,8 @@ function importFromCSV(event) {
         staffData.push({name:name.trim(),startTime:start.trim(),hoursWorked:hw,hasLunch,endTime:raw,outTime:display,days:daysOfWeek.filter((_,i)=>weekday[i]?.trim()==='Yes')});
       }
     });
-    localStorage.setItem('staffData',JSON.stringify(staffData));
+    saveLocalCache(staffData);
+    saveSharedData({ quiet: true });
     renderStaffTable(); generateHeatmap(); generateDailyGrids(); updateOutTimes();
     alert('Imported successfully');
   };
@@ -591,7 +662,7 @@ function bindTimeZoneToggle(toggle) {
   });
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   // Create shared fileInput for import & test data
   const fileInput = document.createElement('input');
   fileInput.type = 'file';
@@ -730,7 +801,7 @@ Peter von Nostrand,10:30,10,Yes,21:30,Yes,Yes,Yes,No,No,No,Yes`;
 
     // 3) replace staffData and persist
     staffData = newData;
-    localStorage.setItem('staffData', JSON.stringify(staffData));
+    persistStaffData({ tryShared: true, quiet: true });
 
     // 4) re-draw everything
     generateHeatmap();
@@ -739,7 +810,20 @@ Peter von Nostrand,10:30,10,Yes,21:30,Yes,Yes,Yes,No,No,No,Yes`;
     //alert('Schedule updated.');
   });
 
-  // 7) Initial render
+  // 7) Shared-file storage. Loading is attempted automatically; local cache remains the fallback.
+  document.getElementById('load-shared-storage')?.addEventListener('click', async () => {
+    if (await loadSharedData()) {
+      renderStaffTable(); generateHeatmap(); generateDailyGrids();
+    }
+  });
+  document.getElementById('save-shared-storage')?.addEventListener('click', async () => {
+    saveLocalCache(staffData);
+    await saveSharedData();
+  });
+
+  await loadSharedData({ quiet: true });
+
+  // 8) Initial render
   renderStaffTable();
   generateHeatmap();
   generateDailyGrids();

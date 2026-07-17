@@ -107,15 +107,24 @@ Field guidance:
 
 ## Data Storage
 
-Schedule data and display preferences are stored in the browser using `localStorage`. Data remains on the current device and browser profile unless it is cleared manually or through browser settings.
+The scheduler supports shared-file storage with an automatic browser-cache fallback.
 
-Use CSV export to create a portable backup before clearing browser data or moving to another device.
+- On startup, the application attempts to load `staff-data.json` from the same directory as `index.html`.
+- When a schedule is saved, the application first updates the local browser cache and then attempts to write the shared file using an HTTP `PUT` request.
+- If the shared directory is unavailable, missing, or read-only, the schedule remains safely stored in the current browser using `localStorage`.
+- The storage status shown above the staff table indicates whether the shared file or local browser cache is active.
+- The Load Shared File and Save Shared File buttons allow users to retry either operation manually.
+
+A normal static web server often permits reading files but does not permit writing them. Shared saving requires a server or storage service configured to accept `PUT` requests to `staff-data.json`. Opening `index.html` directly with a `file://` address normally uses the local browser cache because browsers do not allow a web page to rewrite neighboring files automatically.
+
+Use CSV export as an additional portable backup before clearing browser data or moving to another device.
 
 ## Project Files
 
 - `index.html` contains the application structure.
 - `styles.css` contains layout, heatmap, time-zone, and theme styling.
-- `script.js` contains the active scheduling, conversion, heatmap, storage, and CSV logic.
+- `script.js` contains the active scheduling, conversion, heatmap, shared-storage fallback, and CSV logic.
+- `staff-data.json` is the optional shared schedule file located beside `index.html`.
 - `LightBackground.png` and `DarkBackground.png` provide the visual backgrounds.
 - `preview.png` is the project preview image.
 - `LICENSE` contains the project license.

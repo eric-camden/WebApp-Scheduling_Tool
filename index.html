@@ -103,6 +103,18 @@
     <select id="staff-entry-timezone"></select>
     <span>Entries are always saved and exported in US Eastern Time.</span>
   </div>
+  <section id="storage-controls" class="glass-panel storage-controls" aria-labelledby="storage-title">
+    <div>
+      <strong id="storage-title">Schedule storage</strong>
+      <span id="storage-status" class="storage-status">Checking shared storage...</span>
+    </div>
+    <div class="storage-actions">
+      <button type="button" id="load-shared-storage">Load shared file</button>
+      <button type="button" id="save-shared-storage">Save shared file</button>
+    </div>
+    <small>Uses <code>staff-data.json</code> in the same directory when the web server permits access. If it is missing or read-only, the scheduler automatically uses this browser's local cache.</small>
+  </section>
+
   <div id="button-bar">
     <div class="left-buttons">
       <button id="save-staff">Update & Save</button>
