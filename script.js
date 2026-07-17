@@ -32,74 +32,31 @@ let timeZones = [
 
 const EASTERN_ZONE = 'America/New_York';
 
-const SHARED_DATA_URL = './staff-data.json';
-let sharedStorageWritable = false;
-let activeStorageMode = 'local';
-
-function setStorageStatus(message, mode = 'local') {
-  activeStorageMode = mode;
-  const element = document.getElementById('storage-status');
-  if (!element) return;
-  element.textContent = message;
-  element.className = `storage-status ${mode}`;
-}
-
 function saveLocalCache(data = staffData) {
   localStorage.setItem('staffData', JSON.stringify(data));
 }
 
-function normalizeSharedPayload(payload) {
-  const data = Array.isArray(payload) ? payload : payload?.staffData;
-  if (!Array.isArray(data)) throw new Error('Shared file does not contain a staffData array.');
-  return data;
+// Normalize HTML time values so both "5:00" and "05:00" load as "05:00".
+function normalizeTimeValue(value) {
+  const text = String(value ?? '').trim();
+  if (!text) return '';
+  const match = text.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+  if (!match) return '';
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+  if (!Number.isInteger(hour) || !Number.isInteger(minute) || hour < 0 || hour > 23 || minute < 0 || minute > 59) return '';
+  return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
 }
 
-async function loadSharedData({ quiet = false } = {}) {
-  try {
-    const response = await fetch(`${SHARED_DATA_URL}?t=${Date.now()}`, { cache: 'no-store' });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const remoteData = normalizeSharedPayload(await response.json());
-    staffData = remoteData;
-    saveLocalCache(staffData);
-    setStorageStatus('Shared file loaded; local cache updated.', 'shared');
-    return true;
-  } catch (error) {
-    setStorageStatus('Using local browser cache (shared file unavailable).', 'local');
-    if (!quiet) alert(`Could not load ${SHARED_DATA_URL}. Local browser data remains active.\n\n${error.message}`);
-    return false;
-  }
+function normalizeStaffEntry(entry) {
+  if (!entry || typeof entry !== 'object') return entry;
+  const startTime = normalizeTimeValue(entry.startTime);
+  const endTime = normalizeTimeValue(entry.endTime);
+  return { ...entry, startTime, endTime };
 }
 
-async function saveSharedData({ quiet = false } = {}) {
-  const payload = JSON.stringify({
-    format: 'International Staff Scheduler',
-    version: 1,
-    savedAt: new Date().toISOString(),
-    canonicalTimeZone: EASTERN_ZONE,
-    staffData
-  }, null, 2);
-  try {
-    const response = await fetch(SHARED_DATA_URL, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: payload
-    });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    sharedStorageWritable = true;
-    setStorageStatus('Saved to shared file and local cache.', 'shared');
-    return true;
-  } catch (error) {
-    sharedStorageWritable = false;
-    saveLocalCache(staffData);
-    setStorageStatus('Shared location is read-only; saved to local browser cache.', 'local');
-    if (!quiet) alert(`The shared location could not be written. Your changes were saved in this browser instead.\n\n${error.message}`);
-    return false;
-  }
-}
-
-async function persistStaffData({ tryShared = true, quiet = true } = {}) {
+function persistStaffData() {
   saveLocalCache(staffData);
-  if (tryShared) await saveSharedData({ quiet });
 }
 const savedCustomTimeZones = JSON.parse(localStorage.getItem('customTimeZones') || '[]');
 savedCustomTimeZones.forEach(item => {
@@ -154,6 +111,7 @@ function getZonedDateParts(date, timeZone) {
 }
 
 function formatTimeForZone(primaryTime, targetZone, referenceDate = new Date()) {
+  primaryTime = normalizeTimeValue(primaryTime);
   const [hour, minute] = primaryTime.split(':').map(Number);
   const easternInstant = zonedWallTimeToDate(
     referenceDate.getFullYear(), referenceDate.getMonth() + 1, referenceDate.getDate(),
@@ -178,6 +136,7 @@ function getReferenceMonday() {
 }
 
 function convertScheduleDaysAndTime(startTime, days, fromZone, toZone) {
+  startTime = normalizeTimeValue(startTime);
   if (!startTime || !days?.length || fromZone === toZone) return { startTime, days: [...(days || [])] };
   const monday = getReferenceMonday();
   const converted = days.map(dayName => {
@@ -530,6 +489,8 @@ function forceEndTimeRecalc() {
 
 // Calculate end time: returns both raw (24h) and display (12h) formats
 function calculateEndTime(startTime, hoursWorked, hasLunch) {
+  startTime = normalizeTimeValue(startTime);
+  if (!startTime) return { raw: '', display: '' };
   const [h, m] = startTime.split(':').map(Number);
   const duration = hoursWorked * 60 + (hasLunch ? 60 : 0);
   const endMinutes = h * 60 + m + duration;
@@ -574,7 +535,7 @@ function renderStaffTable() {
   const tbody = document.querySelector('#staff-input-table tbody');
   tbody.innerHTML = '';
   for (let i = 0; i < 30; i++) {
-    const stored = staffData[i] || { name:'', startTime:'', hoursWorked:'', hasLunch:false, outTime:'', days:[] };
+    const stored = normalizeStaffEntry(staffData[i]) || { name:'', startTime:'', hoursWorked:'', hasLunch:false, outTime:'', days:[] };
     const convertedSchedule = stored.startTime ? convertScheduleDaysAndTime(stored.startTime, stored.days, EASTERN_ZONE, getStaffEntryZone()) : { startTime:'', days:[] };
     const data = { ...stored, startTime: convertedSchedule.startTime, days: convertedSchedule.days };
     if (data.startTime && data.hoursWorked) data.outTime = calculateEndTime(data.startTime, data.hoursWorked, data.hasLunch).display;
@@ -616,12 +577,13 @@ function importFromCSV(event) {
         const [name,start,hours,lunch,,...weekday] = cells;
         const hw = parseInt(hours,10);
         const hasLunch = lunch.trim()==='Yes';
-        const {raw,display} = calculateEndTime(start.trim(),hw,hasLunch);
-        staffData.push({name:name.trim(),startTime:start.trim(),hoursWorked:hw,hasLunch,endTime:raw,outTime:display,days:daysOfWeek.filter((_,i)=>weekday[i]?.trim()==='Yes')});
+        const normalizedStart = normalizeTimeValue(start);
+        if (!normalizedStart || !Number.isFinite(hw)) return;
+        const {raw,display} = calculateEndTime(normalizedStart,hw,hasLunch);
+        staffData.push({name:name.trim(),startTime:normalizedStart,hoursWorked:hw,hasLunch,endTime:raw,outTime:display,days:daysOfWeek.filter((_,i)=>weekday[i]?.trim()==='Yes')});
       }
     });
-    saveLocalCache(staffData);
-    saveSharedData({ quiet: true });
+    persistStaffData();
     renderStaffTable(); generateHeatmap(); generateDailyGrids(); updateOutTimes();
     alert('Imported successfully');
   };
@@ -643,7 +605,8 @@ function exportToCSV() {
 
 // ─── On load initialization ───────────────────────────────────────
 const daysOfWeek = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
-let staffData  = JSON.parse(localStorage.getItem('staffData')) || [];
+let staffData = (JSON.parse(localStorage.getItem('staffData')) || []).map(normalizeStaffEntry);
+saveLocalCache(staffData);
 
 function persistCustomTimeZones() {
   localStorage.setItem('customTimeZones', JSON.stringify(timeZones.filter(zone => zone.custom).map(({id,label,zone}) => ({id,label,zone}))));
@@ -682,7 +645,7 @@ function bindTimeZoneToggle(toggle) {
   });
 }
 
-document.addEventListener('DOMContentLoaded', async () => {
+document.addEventListener('DOMContentLoaded', () => {
   // Create shared fileInput for import & test data
   const fileInput = document.createElement('input');
   fileInput.type = 'file';
@@ -815,7 +778,7 @@ Peter von Nostrand,10:30,10,Yes,21:30,Yes,Yes,Yes,No,No,No,Yes`;
     rows.forEach(row => {
       const inputs = row.querySelectorAll('input');
       const name       = inputs[0].value.trim();
-      const startTime  = inputs[1].value;
+      const startTime  = normalizeTimeValue(inputs[1].value);
       const hoursWorked= parseInt(inputs[2].value, 10);
       const hasLunch   = inputs[3].checked;
       const outTime    = inputs[4].value;
@@ -832,7 +795,7 @@ Peter von Nostrand,10:30,10,Yes,21:30,Yes,Yes,Yes,No,No,No,Yes`;
 
     // 3) replace staffData and persist
     staffData = newData;
-    persistStaffData({ tryShared: true, quiet: true });
+    persistStaffData();
 
     // 4) re-draw everything
     generateHeatmap();
@@ -841,19 +804,6 @@ Peter von Nostrand,10:30,10,Yes,21:30,Yes,Yes,Yes,No,No,No,Yes`;
 
     //alert('Schedule updated.');
   });
-
-  // 7) Shared-file storage. Loading is attempted automatically; local cache remains the fallback.
-  document.getElementById('load-shared-storage')?.addEventListener('click', async () => {
-    if (await loadSharedData()) {
-      renderStaffTable(); generateHeatmap(); generateDailyGrids();
-    }
-  });
-  document.getElementById('save-shared-storage')?.addEventListener('click', async () => {
-    saveLocalCache(staffData);
-    await saveSharedData();
-  });
-
-  await loadSharedData({ quiet: true });
 
   // 8) Initial render
   renderStaffTable();

@@ -107,24 +107,20 @@ Field guidance:
 
 ## Data Storage
 
-The scheduler supports shared-file storage with an automatic browser-cache fallback.
+Schedule data is stored only in the current browser using `localStorage`.
 
-- On startup, the application attempts to load `staff-data.json` from the same directory as `index.html`.
-- When a schedule is saved, the application first updates the local browser cache and then attempts to write the shared file using an HTTP `PUT` request.
-- If the shared directory is unavailable, missing, or read-only, the schedule remains safely stored in the current browser using `localStorage`.
-- The storage status shown above the staff table indicates whether the shared file or local browser cache is active.
-- The Load Shared File and Save Shared File buttons allow users to retry either operation manually.
+- Changes are saved locally when the schedule is saved or a CSV file is imported.
+- No remote storage controls or shared-file requests are used.
+- Clearing browser site data removes the locally saved schedule.
+- Use CSV export as a portable backup or to move a schedule to another browser or device.
+- Time values are normalized to 24-hour `HH:MM` format, so `5:00` loads as `05:00`.
 
-A normal static web server often permits reading files but does not permit writing them. Shared saving requires a server or storage service configured to accept `PUT` requests to `staff-data.json`. Opening `index.html` directly with a `file://` address normally uses the local browser cache because browsers do not allow a web page to rewrite neighboring files automatically.
-
-Use CSV export as an additional portable backup before clearing browser data or moving to another device.
 
 ## Project Files
 
 - `index.html` contains the application structure.
 - `styles.css` contains layout, heatmap, time-zone, and theme styling.
-- `script.js` contains the active scheduling, conversion, heatmap, shared-storage fallback, and CSV logic.
-- `staff-data.json` is the optional shared schedule file located beside `index.html`.
+- `script.js` contains the active scheduling, conversion, heatmap, local-storage, and CSV logic.
 - `LightBackground.png` and `DarkBackground.png` provide the visual backgrounds.
 - `preview.png` is the project preview image.
 - `LICENSE` contains the project license.
