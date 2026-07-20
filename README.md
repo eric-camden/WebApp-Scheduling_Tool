@@ -142,3 +142,20 @@ See the `LICENSE` file included with the project.
   - Show all entries displays all 30 available staff rows.
   - Hide empty entries displays only rows containing schedule information.
 - Hiding empty entries does not delete data or reduce the number of available rows. The selected view is saved in the browser.
+
+## Primary Page Time Zone and Business Hours
+
+The scheduler can display the entire working page in a selected primary time zone. This changes the staff-entry table, heatmap staffing calculations, heatmap day labels, and daily schedules while retaining US Eastern as the saved and exported format.
+
+When the selected primary zone is not US Eastern, the heatmap automatically places a US Eastern reference row immediately above the active primary row.
+
+The collapsible Time Zone and Business Hours Configuration panel provides controls for:
+
+- Primary page time zone
+- Business-hours reference time zone
+- Business-hours start and end times
+- Half-hour display
+- Optional heatmap time-zone rows
+- Additional custom IANA time zones
+
+Business hours default to 08:00 through 17:00 US Eastern. Corresponding columns are highlighted in both the heatmap and daily schedules, even when the page is being viewed in another time zone.

@@ -544,3 +544,88 @@ body.dark-mode #staff-input-table {
   gap: 5px;
   cursor: pointer;
 }
+
+/* Primary page time zone and business-hours configuration */
+#timezone-config {
+  margin: 10px 0 14px;
+  padding: 0;
+}
+
+#timezone-config > summary {
+  cursor: pointer;
+  padding: 12px 14px;
+  font-weight: 700;
+}
+
+#timezone-config[open] > summary {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.15);
+}
+
+#timezone-config #display-controls {
+  padding: 12px 14px 14px;
+}
+
+.primary-zone-controls,
+.business-hours-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  width: 100%;
+}
+
+.primary-zone-controls span {
+  font-size: 0.82rem;
+  opacity: 0.78;
+}
+
+.primary-zone-controls select,
+.business-hours-controls select,
+.business-hours-controls input {
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(0,0,0,.3);
+}
+
+.business-hours-controls input[type="time"] {
+  width: 110px;
+}
+
+#staffing-grid .eastern-reference-row th {
+  background: rgba(234, 238, 242, 0.96);
+  border-bottom: 1px solid rgba(57, 119, 168, 0.55);
+}
+
+#staffing-grid th.business-hours {
+  box-shadow: inset 0 -4px 0 rgba(255, 179, 0, 0.85);
+}
+
+#staffing-grid tbody td.business-hours {
+  outline: 2px solid rgba(255, 211, 77, 0.68);
+  outline-offset: -2px;
+}
+
+.schedule-table th.business-hours {
+  box-shadow: inset 0 -4px 0 rgba(255, 179, 0, 0.85);
+}
+
+.schedule-table td.business-hours {
+  outline: 2px solid rgba(255, 211, 77, 0.42);
+  outline-offset: -2px;
+}
+
+.dark-mode #timezone-config[open] > summary {
+  border-bottom-color: rgba(255,255,255,.18);
+}
+
+.dark-mode .primary-zone-controls select,
+.dark-mode .business-hours-controls select,
+.dark-mode .business-hours-controls input {
+  background: #222;
+  color: #fff;
+  border-color: rgba(255,255,255,.35);
+}
+
+.dark-mode #staffing-grid .eastern-reference-row th {
+  background: rgba(47, 52, 58, 0.96);
+}

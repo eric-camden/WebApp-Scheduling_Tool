@@ -28,37 +28,54 @@
 </head>
 <body>
   <h1>International Staff Scheduler</h1>
-<div id="display-controls" class="glass-panel">
-  <div id="toggle-container" style="margin-top: 0;">
-    <label for="half-hour-toggle"><strong>Show half-hour data</strong></label>
-    <input type="checkbox" id="half-hour-toggle" />
-  </div>
-
-  <fieldset id="timezone-controls">
-    <legend><strong>Time zones</strong></legend>
-    <label class="timezone-option primary-zone"><input type="checkbox" checked disabled> Primary — US Eastern</label>
-    <label class="timezone-option"><input type="checkbox" class="timezone-toggle" value="central" checked> US Central</label>
-    <label class="timezone-option"><input type="checkbox" class="timezone-toggle" value="phoenix" checked> Phoenix, Arizona</label>
-    <label class="timezone-option"><input type="checkbox" class="timezone-toggle" value="uk" checked> United Kingdom</label>
-    <label class="timezone-option"><input type="checkbox" class="timezone-toggle" value="brisbane" checked> Brisbane, Queensland</label>
-    <div id="custom-timezone-list"></div>
-    <div class="timezone-add-controls">
-      <select id="timezone-add-select" aria-label="Additional time zone">
-        <option value="">Add another time zone…</option>
-        <option value="Europe/Madrid|Madrid, Spain">Madrid, Spain</option>
-        <option value="Europe/Paris|Paris, France">Paris, France</option>
-        <option value="Europe/Berlin|Berlin, Germany">Berlin, Germany</option>
-        <option value="Asia/Kolkata|India">India</option>
-        <option value="Asia/Singapore|Singapore">Singapore</option>
-        <option value="Asia/Tokyo|Tokyo, Japan">Tokyo, Japan</option>
-        <option value="Pacific/Auckland|Auckland, New Zealand">Auckland, New Zealand</option>
-      </select>
-      <button type="button" id="add-timezone">Add</button>
-      <input id="custom-timezone-input" type="text" placeholder="Or enter IANA zone, e.g. Europe/Madrid" aria-label="Custom IANA time zone">
+<details id="timezone-config" class="glass-panel" open>
+  <summary><strong>Time Zone and Business Hours Configuration</strong></summary>
+  <div id="display-controls">
+    <div class="primary-zone-controls">
+      <label for="staff-entry-timezone"><strong>Primary page time zone:</strong></label>
+      <select id="staff-entry-timezone"></select>
+      <span>Staff data is always saved and exported in US Eastern Time.</span>
     </div>
-  </fieldset>
-  <p class="timezone-note">Time-zone offsets, day changes, and abbreviations use the current date, including daylight-saving changes.</p>
-</div>
+
+    <div class="business-hours-controls">
+      <label for="business-hours-zone"><strong>Business-hours time zone:</strong></label>
+      <select id="business-hours-zone"></select>
+      <label for="business-hours-start">Start</label>
+      <input id="business-hours-start" type="time" value="08:00">
+      <label for="business-hours-end">End</label>
+      <input id="business-hours-end" type="time" value="17:00">
+    </div>
+
+    <div id="toggle-container" style="margin-top: 0;">
+      <label for="half-hour-toggle"><strong>Show half-hour data</strong></label>
+      <input type="checkbox" id="half-hour-toggle" />
+    </div>
+
+    <fieldset id="timezone-controls">
+      <legend><strong>Additional heatmap time zones</strong></legend>
+      <label class="timezone-option"><input type="checkbox" class="timezone-toggle" value="central" checked> US Central</label>
+      <label class="timezone-option"><input type="checkbox" class="timezone-toggle" value="phoenix" checked> Phoenix, Arizona</label>
+      <label class="timezone-option"><input type="checkbox" class="timezone-toggle" value="uk" checked> United Kingdom</label>
+      <label class="timezone-option"><input type="checkbox" class="timezone-toggle" value="brisbane" checked> Brisbane, Queensland</label>
+      <div id="custom-timezone-list"></div>
+      <div class="timezone-add-controls">
+        <select id="timezone-add-select" aria-label="Additional time zone">
+          <option value="">Add another time zone…</option>
+          <option value="Europe/Madrid|Madrid, Spain">Madrid, Spain</option>
+          <option value="Europe/Paris|Paris, France">Paris, France</option>
+          <option value="Europe/Berlin|Berlin, Germany">Berlin, Germany</option>
+          <option value="Asia/Kolkata|India">India</option>
+          <option value="Asia/Singapore|Singapore">Singapore</option>
+          <option value="Asia/Tokyo|Tokyo, Japan">Tokyo, Japan</option>
+          <option value="Pacific/Auckland|Auckland, New Zealand">Auckland, New Zealand</option>
+        </select>
+        <button type="button" id="add-timezone">Add</button>
+        <input id="custom-timezone-input" type="text" placeholder="Or enter IANA zone, e.g. Europe/Madrid" aria-label="Custom IANA time zone">
+      </div>
+    </fieldset>
+    <p class="timezone-note">The full page follows the primary time zone. When the primary zone is not Eastern, a US Eastern reference row appears immediately above it. Highlighted columns correspond to the configured business hours.</p>
+  </div>
+</details>
 
 <p><a href="#daily-schedules">📅 Jump to Daily Schedules</a></p>
 
@@ -86,7 +103,7 @@
     <div style="margin-top: 10px;">
       <p><strong>Step 1:</strong> Enter staff names, start time, hours worked, and select the days they work. The end time will be calculated automatically.</p>
       <p><strong>Step 2:</strong> Click <strong>Update & Save</strong> to generate the Heatmap and Daily Schedules.</p>
-      <p><strong>Step 3:</strong> Use the <strong>Show half-hour data</strong> toggle to refine time resolution, and select the optional time zones you want displayed beneath Primary US Eastern time. Small +1 or -1 markers indicate a next-day or previous-day conversion.</p>
+      <p><strong>Step 3:</strong> Use the time-zone configuration near the top to select the primary page time zone, optional reference rows, and the business hours to highlight. Small +1 or -1 markers indicate a next-day or previous-day conversion relative to the primary row.</p>
       <p><strong>Step 4:</strong> You can <strong>Import</strong> or <strong>Export</strong> data as CSV, <strong>Clear</strong> the staff list, or load <strong>Sample Data</strong> for demo purposes.</p>
       <p>Your entries are saved locally in your browser and will be restored on your next visit.</p>
       <p style="margin-top: 1em; font-style: italic; color: #555;">We've pre-loaded example data on your first visit to help you explore the tool quickly. You can clear or replace it anytime.</p>
@@ -98,12 +115,6 @@
   <details open>
 <summary>👥 Staff Table</summary>
 <h2>Staff Table</h2>
-  <div class="staff-timezone-control glass-panel">
-    <label for="staff-entry-timezone"><strong>View/edit staff entries in:</strong></label>
-    <select id="staff-entry-timezone"></select>
-    <span>Entries are always saved and exported in US Eastern Time.</span>
-  </div>
-
   <div class="staff-row-filter glass-panel" role="radiogroup" aria-labelledby="staff-row-filter-title">
     <strong id="staff-row-filter-title">Staff table rows:</strong>
     <label><input type="radio" name="staff-row-filter" value="show-all" checked> Show all entries</label>
