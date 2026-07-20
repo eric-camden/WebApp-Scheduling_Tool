@@ -137,7 +137,6 @@ See the `LICENSE` file included with the project.
 
 ## Staff table display options
 
-- The Schedule storage panel starts collapsed when the page loads. Expand it to load from or save to the shared JSON file.
 - The Staff table rows control provides two views:
   - Show all entries displays all 30 available staff rows.
   - Hide empty entries displays only rows containing schedule information.
@@ -167,3 +166,25 @@ Each staff row includes an **Active** checkbox. Inactive rows remain saved and v
 
 
 Active/inactive checkbox changes are saved and reflected in the heatmap and daily schedules immediately.
+
+## Staff Table Presets
+
+Four preset buttons appear immediately before **Load Test Data**.
+
+- Click a preset button once to load it into the staff table and refresh the heatmap and daily schedules.
+- Hold a preset button for three seconds to save the current staff table into that preset.
+- Each preset records all 30 staff rows, including active status, name, start time, hours, lunch selection, and weekdays.
+- Preset times are stored in US Eastern Time, regardless of the current page viewing time zone.
+- A dot on a preset button indicates that the preset contains saved data.
+- Presets are stored in the current browser through `localStorage`.
+
+## Interface Organization
+
+The application header includes the credit line "by Camdizzle Software." The instructions are provided once in a collapsible help panel positioned immediately above the heatmap. The help panel opens from its title and includes a Collapse Instructions button.
+
+The Heatmap and Staff Table are collapsible sections that are expanded by default. Each section uses a single heading to avoid duplicate titles. The previous Jump to Daily Schedules shortcut has been removed.
+
+
+## Primary Time Zone Summary
+
+The primary page time-zone selector and the Eastern-time storage notice remain visible at all times. Additional time-zone rows and business-hours controls can be collapsed independently.

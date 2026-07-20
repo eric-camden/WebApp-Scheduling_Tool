@@ -707,6 +707,149 @@ function exportToCSV() {
 
 
 
+const PRESET_HOLD_MS = 3000;
+
+function getPresetStorageKey(number) {
+  return `staffTablePreset${number}`;
+}
+
+function captureStaffTableForPreset() {
+  const rows = document.querySelectorAll('#staff-input-table tbody tr');
+  return Array.from(rows).map(row => {
+    const inputs = row.querySelectorAll('input');
+    const active = inputs[0].checked;
+    const name = inputs[1].value.trim();
+    const startTime = normalizeTimeValue(inputs[2].value);
+    const hoursValue = inputs[3].value.trim();
+    const hoursWorked = hoursValue === '' ? '' : Number(hoursValue);
+    const hasLunch = inputs[4].checked;
+    const days = daysOfWeek.filter((_, index) => inputs[6 + index].checked);
+    const easternSchedule = startTime
+      ? convertScheduleDaysAndTime(startTime, days, getStaffEntryZone(), EASTERN_ZONE)
+      : { startTime: '', days };
+    const end = easternSchedule.startTime && Number.isFinite(hoursWorked)
+      ? calculateEndTime(easternSchedule.startTime, hoursWorked, hasLunch)
+      : { raw: '', display: '' };
+
+    return {
+      active,
+      name,
+      startTime: easternSchedule.startTime,
+      hoursWorked: Number.isFinite(hoursWorked) ? hoursWorked : '',
+      hasLunch,
+      endTime: end.raw,
+      outTime: end.display,
+      days: easternSchedule.days
+    };
+  });
+}
+
+function refreshPresetIndicators() {
+  document.querySelectorAll('.preset-button').forEach(button => {
+    const hasData = Boolean(localStorage.getItem(getPresetStorageKey(button.dataset.preset)));
+    button.classList.toggle('has-data', hasData);
+    button.setAttribute('aria-label', `${button.textContent.trim()}. ${hasData ? 'Saved preset available.' : 'Empty preset.'} Click to load; hold for 3 seconds to save.`);
+  });
+}
+
+function showPresetButtonMessage(button, message) {
+  const original = button.dataset.originalText || button.textContent.trim();
+  button.dataset.originalText = original;
+  button.textContent = message;
+  window.clearTimeout(button._messageTimer);
+  button._messageTimer = window.setTimeout(() => {
+    button.textContent = original;
+    refreshPresetIndicators();
+  }, 1200);
+}
+
+function saveStaffPreset(number, button) {
+  updateOutTimes();
+  const preset = {
+    version: 1,
+    savedAt: new Date().toISOString(),
+    staff: captureStaffTableForPreset()
+  };
+  localStorage.setItem(getPresetStorageKey(number), JSON.stringify(preset));
+  refreshPresetIndicators();
+  showPresetButtonMessage(button, 'Saved');
+}
+
+function loadStaffPreset(number, button) {
+  const raw = localStorage.getItem(getPresetStorageKey(number));
+  if (!raw) {
+    showPresetButtonMessage(button, 'Empty');
+    return;
+  }
+
+  try {
+    const parsed = JSON.parse(raw);
+    const rows = Array.isArray(parsed) ? parsed : parsed.staff;
+    if (!Array.isArray(rows)) throw new Error('Invalid preset data');
+    staffData = rows.map(normalizeStaffEntry);
+    persistStaffData();
+    renderStaffTable();
+    generateHeatmap();
+    generateDailyGrids();
+    applyStaffRowFilter();
+    showPresetButtonMessage(button, 'Loaded');
+  } catch (error) {
+    console.error('Unable to load staff preset:', error);
+    showPresetButtonMessage(button, 'Error');
+  }
+}
+
+function initializePresetButtons() {
+  document.querySelectorAll('.preset-button').forEach(button => {
+    let holdTimer = null;
+    let longPressFired = false;
+    const number = button.dataset.preset;
+    button.dataset.originalText = button.textContent.trim();
+
+    const cancelHold = () => {
+      window.clearTimeout(holdTimer);
+      holdTimer = null;
+      button.classList.remove('is-holding');
+    };
+
+    button.addEventListener('pointerdown', event => {
+      if (event.button !== undefined && event.button !== 0) return;
+      longPressFired = false;
+      button.classList.add('is-holding');
+      holdTimer = window.setTimeout(() => {
+        longPressFired = true;
+        button.classList.remove('is-holding');
+        saveStaffPreset(number, button);
+        if (navigator.vibrate) navigator.vibrate(50);
+      }, PRESET_HOLD_MS);
+    });
+
+    ['pointerup', 'pointercancel', 'pointerleave'].forEach(eventName => {
+      button.addEventListener(eventName, cancelHold);
+    });
+
+    button.addEventListener('click', event => {
+      event.preventDefault();
+      if (longPressFired) {
+        longPressFired = false;
+        return;
+      }
+      loadStaffPreset(number, button);
+    });
+
+    button.addEventListener('keydown', event => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        loadStaffPreset(number, button);
+      }
+    });
+
+    button.addEventListener('contextmenu', event => event.preventDefault());
+  });
+  refreshPresetIndicators();
+}
+
+
 // Heatmap & Daily grid generation remain unchanged
 
 // ─── On load initialization ───────────────────────────────────────
@@ -797,15 +940,13 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // 2) Instructions panel toggle
+  // 2) Instructions panel opens from its summary link and can be collapsed from within.
   const instr = document.getElementById('instructions');
-  const showToggle = document.getElementById('show-on-load');
-  if (instr && showToggle) {
-    const pref = localStorage.getItem('showInstructions');
-    instr.open = pref !== 'false';
-    showToggle.checked = pref !== 'false';
-    showToggle.addEventListener('change', () => {
-      localStorage.setItem('showInstructions', showToggle.checked ? 'true' : 'false');
+  const collapseInstructions = document.getElementById('collapse-instructions');
+  if (instr && collapseInstructions) {
+    collapseInstructions.addEventListener('click', () => {
+      instr.open = false;
+      instr.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     });
   }
 
@@ -881,6 +1022,9 @@ document.addEventListener('DOMContentLoaded', () => {
       requestAnimationFrame(applyStaffRowFilter);
     });
   });
+
+  // Staff table presets: click to load, hold for three seconds to save.
+  initializePresetButtons();
 
   // 4) Clear staff data
   document.getElementById('clear-staff').addEventListener('click', () => {

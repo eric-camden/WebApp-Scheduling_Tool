@@ -545,6 +545,17 @@ body.dark-mode #staff-input-table {
   cursor: pointer;
 }
 
+
+/* Always-visible primary time-zone selector */
+.primary-timezone-summary {
+  margin: 10px 0 8px;
+  padding: 12px 14px;
+}
+
+.primary-timezone-summary .primary-zone-controls {
+  margin: 0;
+}
+
 /* Primary page time zone and business-hours configuration */
 #timezone-config {
   margin: 10px 0 14px;
@@ -804,4 +815,76 @@ body.split-view #daily-column > h2 {
     max-width: 100%;
     gap: 10px;
   }
+}
+
+/* Branding and simplified collapsible sections */
+.brand-block {
+  margin-right: auto;
+}
+
+.brand-block h1 {
+  margin: 0;
+}
+
+.brand-credit {
+  margin-top: 2px;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  color: #555;
+}
+
+.dark-mode .brand-credit {
+  color: #bbb;
+}
+
+.help-panel {
+  margin: 18px 0 12px;
+  padding: 0;
+}
+
+.help-panel > summary {
+  padding: 10px 14px;
+  cursor: pointer;
+  color: #1769aa;
+  text-decoration: underline;
+  font-weight: 700;
+  list-style-position: inside;
+}
+
+.help-panel[open] > summary {
+  color: inherit;
+  text-decoration: none;
+  border-bottom: 1px solid rgba(128, 128, 128, 0.3);
+}
+
+.help-content {
+  padding: 4px 14px 14px;
+}
+
+.help-note {
+  margin-top: 1em;
+  font-style: italic;
+  color: #555;
+}
+
+.dark-mode .help-note {
+  color: #bbb;
+}
+
+.collapse-section-button {
+  margin-top: 4px;
+}
+
+#heatmap-section > summary,
+#staff-table-section > summary {
+  cursor: pointer;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #333;
+  margin: 18px 0 8px;
+}
+
+.dark-mode #heatmap-section > summary,
+.dark-mode #staff-table-section > summary {
+  color: #fff;
 }
