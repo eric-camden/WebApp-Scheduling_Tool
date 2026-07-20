@@ -27,7 +27,20 @@
   </style>
 </head>
 <body>
-  <h1>International Staff Scheduler</h1>
+  <div class="page-header-row">
+    <h1>International Staff Scheduler</h1>
+    <div class="view-mode-controls glass-panel" aria-label="Page display options">
+      <button id="dark-mode-toggle" type="button">🌙 Dark Mode</button>
+      <label class="switch-control" for="split-view-toggle">
+        <span>Split</span>
+        <input type="checkbox" id="split-view-toggle" role="switch" aria-label="Split page into two columns">
+        <span class="switch-slider" aria-hidden="true"></span>
+      </label>
+    </div>
+  </div>
+
+  <div id="page-layout">
+    <main id="primary-content">
 <details id="timezone-config" class="glass-panel" open>
   <summary><strong>Time Zone and Business Hours Configuration</strong></summary>
   <div id="display-controls">
@@ -110,8 +123,6 @@
     </div>
   </details>
 
-  <button id="dark-mode-toggle">🌙 Dark Mode</button>
-
   <details open>
 <summary>👥 Staff Table</summary>
 <h2>Staff Table</h2>
@@ -161,8 +172,13 @@
 
   
 
-  <h2>Daily Schedules</h2>
-  <div id="daily-schedules"></div>
+    </main>
+
+    <aside id="daily-column">
+      <h2>Daily Schedules</h2>
+      <div id="daily-schedules"></div>
+    </aside>
+  </div>
 
   <script src="script.js"></script>
 </body>

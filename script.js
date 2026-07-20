@@ -778,6 +778,25 @@ document.addEventListener('DOMContentLoaded', () => {
     localStorage.setItem('darkMode', enabled ? 'enabled' : 'disabled');
   });
 
+  // Split view toggle
+  const splitToggle = document.getElementById('split-view-toggle');
+  if (splitToggle) {
+    const splitEnabled = localStorage.getItem('splitView') === 'enabled';
+    splitToggle.checked = splitEnabled;
+    document.body.classList.toggle('split-view', splitEnabled);
+
+    splitToggle.addEventListener('change', () => {
+      document.body.classList.toggle('split-view', splitToggle.checked);
+      localStorage.setItem('splitView', splitToggle.checked ? 'enabled' : 'disabled');
+
+      // Re-render after the layout width changes so both columns size cleanly.
+      requestAnimationFrame(() => {
+        generateHeatmap();
+        generateDailyGrids();
+      });
+    });
+  }
+
   // 2) Instructions panel toggle
   const instr = document.getElementById('instructions');
   const showToggle = document.getElementById('show-on-load');
