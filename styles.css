@@ -629,3 +629,26 @@ body.dark-mode #staff-input-table {
 .dark-mode #staffing-grid .eastern-reference-row th {
   background: rgba(47, 52, 58, 0.96);
 }
+
+
+/* Active staff toggle */
+#staff-input-table th:first-child,
+#staff-input-table td.active-toggle-cell {
+  width: 58px;
+  min-width: 58px;
+  text-align: center;
+}
+
+#staff-input-table td.active-toggle-cell input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+#staff-input-table tr.inactive-staff-row td:not(.active-toggle-cell) {
+  opacity: 0.58;
+}
+
+#staff-input-table tr.inactive-staff-row {
+  background-image: repeating-linear-gradient(135deg, transparent, transparent 8px, rgba(128,128,128,.06) 8px, rgba(128,128,128,.06) 16px);
+}

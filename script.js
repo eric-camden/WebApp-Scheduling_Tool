@@ -52,7 +52,7 @@ function normalizeStaffEntry(entry) {
   if (!entry || typeof entry !== 'object') return entry;
   const startTime = normalizeTimeValue(entry.startTime);
   const endTime = normalizeTimeValue(entry.endTime);
-  return { ...entry, startTime, endTime };
+  return { ...entry, active: entry.active !== false, startTime, endTime };
 }
 
 function persistStaffData() {
@@ -209,7 +209,7 @@ function isBusinessHourSlot(primaryTime, referenceDate = new Date()) {
 }
 
 function getStaffDataForZone(zone) {
-  return staffData.map(staff => {
+  return staffData.filter(staff => staff.active !== false && staff.name && staff.startTime && Number.isFinite(Number(staff.hoursWorked))).map(staff => {
     const converted = convertScheduleDaysAndTime(staff.startTime, staff.days, EASTERN_ZONE, zone);
     return { ...staff, startTime: converted.startTime, days: converted.days };
   });
@@ -438,10 +438,10 @@ function generateDailyGrids() {
 function updateOutTimes() {
   document.querySelectorAll('#staff-input-table tbody tr').forEach(row => {
     const inputs = row.querySelectorAll('input');
-    const start = inputs[1].value;
-    const hours = parseInt(inputs[2].value, 10);
-    const lunch = inputs[3].checked;
-    const outDisplay = inputs[4];
+    const start = inputs[2].value;
+    const hours = parseInt(inputs[3].value, 10);
+    const lunch = inputs[4].checked;
+    const outDisplay = inputs[5];
     if (start && !isNaN(hours)) {
       outDisplay.value = calculateEndTime(start, hours, lunch).display;
     } else {
@@ -540,8 +540,8 @@ function forceEndTimeRecalc() {
   const rows = document.querySelectorAll("#staff-input-table tbody tr");
   rows.forEach(row => {
     const inputs = row.querySelectorAll("td input");
-    const startTimeInput = inputs[1];
-    const lunchCheckbox = inputs[3];
+    const startTimeInput = inputs[2];
+    const lunchCheckbox = inputs[4];
     if (startTimeInput?.value && lunchCheckbox) {
       const originalState = lunchCheckbox.checked;
       lunchCheckbox.checked = !originalState;
@@ -585,9 +585,12 @@ function getStaffRowFilter() {
 function rowIsEmpty(row) {
   const inputs = row.querySelectorAll('input');
   if (!inputs.length) return true;
-  const hasText = [0, 1, 2].some(index => String(inputs[index]?.value || '').trim() !== '');
-  const hasLunch = Boolean(inputs[3]?.checked);
-  const hasSelectedDay = Array.from(inputs).slice(5).some(input => input.checked);
+  const isActive = Boolean(inputs[0]?.checked);
+  // Inactive rows always remain visible, even when every other field is empty.
+  if (!isActive) return false;
+  const hasText = [1, 2, 3].some(index => String(inputs[index]?.value || '').trim() !== '');
+  const hasLunch = Boolean(inputs[4]?.checked);
+  const hasSelectedDay = Array.from(inputs).slice(6).some(input => input.checked);
   return !hasText && !hasLunch && !hasSelectedDay;
 }
 
@@ -602,11 +605,34 @@ function renderStaffTable() {
   const tbody = document.querySelector('#staff-input-table tbody');
   tbody.innerHTML = '';
   for (let i = 0; i < 30; i++) {
-    const stored = normalizeStaffEntry(staffData[i]) || { name:'', startTime:'', hoursWorked:'', hasLunch:false, outTime:'', days:[] };
+    const stored = normalizeStaffEntry(staffData[i]) || { active:true, name:'', startTime:'', hoursWorked:'', hasLunch:false, outTime:'', days:[] };
     const convertedSchedule = stored.startTime ? convertScheduleDaysAndTime(stored.startTime, stored.days, EASTERN_ZONE, getStaffEntryZone()) : { startTime:'', days:[] };
-    const data = { ...stored, startTime: convertedSchedule.startTime, days: convertedSchedule.days };
+    const data = { ...stored, active: stored.active !== false, startTime: convertedSchedule.startTime, days: convertedSchedule.days };
     if (data.startTime && data.hoursWorked) data.outTime = calculateEndTime(data.startTime, data.hoursWorked, data.hasLunch).display;
     const row = document.createElement('tr');
+    row.classList.toggle('inactive-staff-row', !data.active);
+
+    const activeCell = document.createElement('td');
+    activeCell.className = 'active-toggle-cell';
+    const activeInput = document.createElement('input');
+    activeInput.type = 'checkbox';
+    activeInput.checked = data.active;
+    activeInput.title = 'Include this staff member in schedules and heatmaps';
+    activeInput.setAttribute('aria-label', `Active status for staff row ${i + 1}`);
+    activeInput.addEventListener('change', () => {
+      row.classList.toggle('inactive-staff-row', !activeInput.checked);
+      applyStaffRowFilter();
+
+      // Persist the toggle and immediately refresh schedule outputs.
+      // Deferring one frame ensures the checkbox state and row visibility
+      // have finished updating before the table is read.
+      requestAnimationFrame(() => {
+        document.getElementById('save-staff')?.click();
+      });
+    });
+    activeCell.appendChild(activeInput);
+    row.appendChild(activeCell);
+
     ['text','time','number','checkbox','text'].forEach((type, idx) => {
       const cell = document.createElement('td');
       const inp = document.createElement('input');
@@ -630,25 +656,38 @@ function renderStaffTable() {
     tbody.appendChild(row);
   }
   updateOutTimes();
+  applyStaffRowFilter();
 }
-
 // CSV Import
 function importFromCSV(event) {
   const file = event.target.files[0]; if (!file) return;
   const reader = new FileReader();
   reader.onload = e => {
-    const rows = e.target.result.trim().split('\n').map(r => r.split(','));
+    const rows = e.target.result.trim().split(/\r?\n/).map(r => r.split(','));
+    const header = rows[0].map(value => value.trim().toLowerCase());
+    const hasActiveColumn = header[0] === 'active';
     staffData.length = 0;
     rows.slice(1).forEach(cells => {
-      if (cells.length >= 12) {
-        const [name,start,hours,lunch,,...weekday] = cells;
-        const hw = parseInt(hours,10);
-        const hasLunch = lunch.trim()==='Yes';
-        const normalizedStart = normalizeTimeValue(start);
-        if (!normalizedStart || !Number.isFinite(hw)) return;
-        const {raw,display} = calculateEndTime(normalizedStart,hw,hasLunch);
-        staffData.push({name:name.trim(),startTime:normalizedStart,hoursWorked:hw,hasLunch,endTime:raw,outTime:display,days:daysOfWeek.filter((_,i)=>weekday[i]?.trim()==='Yes')});
+      if (cells.length < (hasActiveColumn ? 13 : 12)) return;
+      const offset = hasActiveColumn ? 1 : 0;
+      const active = hasActiveColumn ? !['no','false','0','inactive'].includes((cells[0] || '').trim().toLowerCase()) : true;
+      const name = cells[offset];
+      const start = cells[offset + 1];
+      const hours = cells[offset + 2];
+      const lunch = cells[offset + 3];
+      const weekday = cells.slice(offset + 5, offset + 12);
+      const hw = parseInt(hours,10);
+      const hasLunch = lunch.trim()==='Yes';
+      const normalizedStart = normalizeTimeValue(start);
+      const days = daysOfWeek.filter((_,i)=>weekday[i]?.trim()==='Yes');
+      if (!active) {
+        const end = normalizedStart && Number.isFinite(hw) ? calculateEndTime(normalizedStart, hw, hasLunch) : { raw:'', display:'' };
+        staffData.push({active:false,name:(name||'').trim(),startTime:normalizedStart,hoursWorked:Number.isFinite(hw)?hw:'',hasLunch,endTime:end.raw,outTime:end.display,days});
+        return;
       }
+      if (!normalizedStart || !Number.isFinite(hw) || !(name||'').trim()) return;
+      const {raw,display} = calculateEndTime(normalizedStart,hw,hasLunch);
+      staffData.push({active:true,name:name.trim(),startTime:normalizedStart,hoursWorked:hw,hasLunch,endTime:raw,outTime:display,days});
     });
     persistStaffData();
     renderStaffTable(); generateHeatmap(); generateDailyGrids(); updateOutTimes();
@@ -659,12 +698,12 @@ function importFromCSV(event) {
 
 // CSV Export
 function exportToCSV() {
-  const header = ['Name','Start Time','Hours','Lunch','End Time',...daysOfWeek].join(',');
-  const csv = [header,...staffData.map(s=>[s.name,s.startTime,s.hoursWorked,s.hasLunch?'Yes':'No',s.endTime,...daysOfWeek.map(d=>s.days.includes(d)?'Yes':'No')].join(','))].join('\n');
+  const header = ['Active','Name','Start Time','Hours','Lunch','End Time',...daysOfWeek].join(',');
+  const exportRows = staffData.filter(s => s.active === false || s.name || s.startTime || s.hoursWorked || s.days?.length);
+  const csv = [header,...exportRows.map(s=>[s.active===false?'No':'Yes',s.name||'',s.startTime||'',s.hoursWorked||'',s.hasLunch?'Yes':'No',s.endTime||'',...daysOfWeek.map(d=>s.days?.includes(d)?'Yes':'No')].join(','))].join('\n');
   const blob = new Blob([csv],{type:'text/csv'});
   const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='staff_schedule.csv'; a.click();
 }
-
 
 
 
@@ -820,7 +859,7 @@ document.addEventListener('DOMContentLoaded', () => {
     radio.addEventListener('change', event => {
       if (!event.target.checked) return;
       localStorage.setItem('staffRowFilter', event.target.value);
-      applyStaffRowFilter();
+      requestAnimationFrame(applyStaffRowFilter);
     });
   });
 
@@ -877,19 +916,28 @@ Peter von Nostrand,10:30,10,Yes,21:30,Yes,Yes,Yes,No,No,No,Yes`;
     const newData = [];
     rows.forEach(row => {
       const inputs = row.querySelectorAll('input');
-      const name       = inputs[0].value.trim();
-      const startTime  = normalizeTimeValue(inputs[1].value);
-      const hoursWorked= parseInt(inputs[2].value, 10);
-      const hasLunch   = inputs[3].checked;
-      const outTime    = inputs[4].value;
-      // daysOfWeek is your [ "Monday", …, "Sunday" ] array
-      const days = daysOfWeek.filter((_, idx) => inputs[5 + idx].checked);
+      const active      = inputs[0].checked;
+      const name        = inputs[1].value.trim();
+      const startTime   = normalizeTimeValue(inputs[2].value);
+      const hoursWorked = parseInt(inputs[3].value, 10);
+      const hasLunch    = inputs[4].checked;
+      const outTime     = inputs[5].value;
+      const days = daysOfWeek.filter((_, idx) => inputs[6 + idx].checked);
+      const hasAnyEntry = Boolean(name || startTime || Number.isFinite(hoursWorked) || hasLunch || days.length);
 
-      // only keep fully-filled rows
-      if (name && startTime && hoursWorked && outTime) {
+      if (!active) {
+        // Preserve inactive rows, including a completely empty inactive placeholder.
+        const easternSchedule = startTime
+          ? convertScheduleDaysAndTime(startTime, days, getStaffEntryZone(), EASTERN_ZONE)
+          : { startTime: '', days };
+        const easternEnd = easternSchedule.startTime && Number.isFinite(hoursWorked)
+          ? calculateEndTime(easternSchedule.startTime, hoursWorked, hasLunch)
+          : { raw: '', display: '' };
+        newData.push({ active:false, name, startTime:easternSchedule.startTime, hoursWorked:Number.isFinite(hoursWorked)?hoursWorked:'', hasLunch, endTime:easternEnd.raw, outTime:easternEnd.display, days:easternSchedule.days });
+      } else if (hasAnyEntry && name && startTime && Number.isFinite(hoursWorked) && outTime) {
         const easternSchedule = convertScheduleDaysAndTime(startTime, days, getStaffEntryZone(), EASTERN_ZONE);
         const easternEnd = calculateEndTime(easternSchedule.startTime, hoursWorked, hasLunch);
-        newData.push({ name, startTime: easternSchedule.startTime, hoursWorked, hasLunch, endTime: easternEnd.raw, outTime: easternEnd.display, days: easternSchedule.days });
+        newData.push({ active:true, name, startTime: easternSchedule.startTime, hoursWorked, hasLunch, endTime: easternEnd.raw, outTime: easternEnd.display, days: easternSchedule.days });
       }
     });
 

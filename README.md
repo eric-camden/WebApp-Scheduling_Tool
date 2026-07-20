@@ -159,3 +159,11 @@ The collapsible Time Zone and Business Hours Configuration panel provides contro
 - Additional custom IANA time zones
 
 Business hours default to 08:00 through 17:00 US Eastern. Corresponding columns are highlighted in both the heatmap and daily schedules, even when the page is being viewed in another time zone.
+
+
+## Active Staff Rows
+
+Each staff row includes an **Active** checkbox. Inactive rows remain saved and visible, even when **Hide empty entries** is selected, but they are excluded from heatmaps and daily schedules.
+
+
+Active/inactive checkbox changes are saved and reflected in the heatmap and daily schedules immediately.
